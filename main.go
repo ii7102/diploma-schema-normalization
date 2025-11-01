@@ -34,7 +34,6 @@ func normalizerOptions() []rules.NormalizerOption {
 		rules.WithArrayOfStringFields("stringArray", "stringArray2", "stringArray3", "stringArray4", "stringArray5"),
 		rules.WithArrayOfFloatFields("floatArray", "floatArray2", "floatArray3", "floatArray4", "floatArray5"),
 		rules.WithArrayOfEnumOfStringFields([]any{"Alice", "Bob", "Charlie"}, "enumStringArray", "enumStringArray2", "enumStringArray3", "enumStringArray4"),
-		rules.WithArrayOfEnumOfStringFields([]any{"Alice", "Bob", "Charlie"}, "enumStringArray", "enumStringArray2", "enumStringArray3", "enumStringArray4"),
 	}
 }
 
