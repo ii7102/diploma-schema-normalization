@@ -2,7 +2,6 @@ package rules
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"reflect"
 )
@@ -12,25 +11,41 @@ const (
 )
 
 func stringEnumValues() []any {
-	return []any{"test_string", "0", "1", "-1.1", "1.1", "true", "false", "", nil}
+	return []any{"test_string", "0", "1", "-1.1", "1.1", "true", "false", ""}
 }
 
 func floatEnumValues() []any {
-	return []any{0.0, 1.0, -1.0, -1.1, 1.1, 0.0, -1.0, 1.0, nil}
+	return []any{0.0, 1.0, -1.0, -1.1, 1.1, 0.0}
+}
+
+func objectFields() map[Field]FieldType {
+	return map[Field]FieldType{
+		BooleanType().Field(): BooleanType(),
+		IntegerType().Field(): IntegerType(),
+		StringType().Field():  StringType(),
+		FloatType().Field():   FloatType(),
+	}
 }
 
 func testNormalizerOptions() []NormalizerOption {
+
+	stringEnum, _ := EnumOf(StringType(), stringEnumValues()...)
+	floatEnum, _ := EnumOf(FloatType(), floatEnumValues()...)
+
+	objectType, _ := ObjectType(objectFields())
+
 	return []NormalizerOption{
 		WithBooleanFields(BooleanType().Field()),
 		WithIntegerFields(IntegerType().Field()),
 		WithStringFields(StringType().Field()),
 		WithFloatFields(FloatType().Field()),
-		WithEnumOfStringFields(stringEnumValues(), EnumOf(StringType(), nil).Field()),
+		WithEnumOfStringFields(stringEnumValues(), stringEnum.Field()),
 		WithArrayOfBooleanFields(ArrayOf(BooleanType()).Field()),
 		WithArrayOfIntegerFields(ArrayOf(IntegerType()).Field()),
 		WithArrayOfStringFields(ArrayOf(StringType()).Field()),
 		WithArrayOfFloatFields(ArrayOf(FloatType()).Field()),
-		WithArrayOfEnumOfFloatFields(floatEnumValues(), EnumOf(FloatType(), nil).Field()),
+		WithArrayOfEnumOfFloatFields(floatEnumValues(), ArrayOf(floatEnum).Field()),
+		WithObjectField(objectFields(), objectType.Field()),
 	}
 }
 
@@ -38,84 +53,217 @@ type inputOutput struct {
 	input, output any
 }
 
+type randomTestValues struct {
+	int     int
+	int63   int64
+	float63 float64
+	boolean bool
+	string  string
+}
+
+func generateRandomTestValues() randomTestValues {
+	return randomTestValues{
+		int:     rand.Int(),
+		int63:   rand.Int63(),
+		float63: rand.Float64(),
+		boolean: randomBoolean(),
+		string:  randomString(),
+	}
+}
+
+func nonExistingFieldTests(rnd randomTestValues) []inputOutput {
+	return []inputOutput{
+		{input: true, output: nil},
+		{input: 0, output: nil},
+		{input: 0.123456789, output: nil},
+		{input: "test_string", output: nil},
+		{input: rnd.int, output: nil},
+		{input: rnd.int63, output: nil},
+		{input: rnd.float63, output: nil},
+		{input: rnd.boolean, output: nil},
+		{input: rnd.string, output: nil},
+		{input: nil, output: nil},
+	}
+}
+
+func booleanTypeTests() []inputOutput {
+	return []inputOutput{
+		{input: true, output: true},
+		{input: false, output: false},
+		{input: "true", output: true},
+		{input: "false", output: false},
+		{input: nil, output: nil},
+	}
+}
+
+func integerTypeTests(rnd randomTestValues) []inputOutput {
+	return []inputOutput{
+		{input: 0, output: 0},
+		{input: 1, output: 1},
+		{input: 1.0, output: 1},
+		{input: 1.1, output: 1},
+		{input: 1.9, output: 1},
+		{input: -1.0, output: -1},
+		{input: -1.1, output: -1},
+		{input: -1.9, output: -1},
+		{input: 123456789, output: 123456789},
+		{input: 0.123456789, output: 0},
+		{input: "3", output: 3},
+		{input: rnd.int, output: rnd.int},
+		{input: rnd.int63, output: rnd.int63},
+		{input: rnd.float63, output: int64(rnd.float63)},
+		{input: nil, output: nil},
+	}
+}
+
+func stringTypeTests(rnd randomTestValues) []inputOutput {
+	return []inputOutput{
+		{input: "test_string", output: "test_string"},
+		{input: "3", output: "3"},
+		{input: "", output: ""},
+		{input: true, output: "true"},
+		{input: false, output: "false"},
+		{input: 0, output: "0"},
+		{input: 1.1, output: "1.1"},
+		{input: 1.0, output: "1"},
+		{input: -1.1, output: "-1.1"},
+		{input: 123456789, output: "123456789"},
+		{input: rnd.string, output: rnd.string},
+		{input: rnd.int, output: fmt.Sprintf("%d", rnd.int)},
+		{input: rnd.int63, output: fmt.Sprintf("%d", rnd.int63)},
+		{input: rnd.float63, output: fmt.Sprintf("%v", rnd.float63)},
+		{input: nil, output: nil},
+	}
+}
+
+func floatTypeTests(rnd randomTestValues) []inputOutput {
+	return []inputOutput{
+		{input: 0, output: 0.0},
+		{input: 1, output: 1.0},
+		{input: 1.0, output: 1.0},
+		{input: 1.1, output: 1.1},
+		{input: 1.9, output: 1.9},
+		{input: -1.0, output: -1.0},
+		{input: -1.1, output: -1.1},
+		{input: -1.9, output: -1.9},
+		{input: 123456789, output: 123456789.0},
+		{input: 0.123456789, output: 0.123456789},
+		{input: "3", output: 3.0},
+		{input: rnd.int, output: float64(rnd.int)},
+		{input: rnd.int63, output: float64(rnd.int63)},
+		{input: rnd.float63, output: rnd.float63},
+		{input: nil, output: nil},
+	}
+}
+
+func stringEnumTests() []inputOutput {
+	return []inputOutput{
+		{input: "test_string", output: "test_string"},
+		{input: "0", output: "0"},
+		{input: "1", output: "1"},
+		{input: "-1.1", output: "-1.1"},
+		{input: "1.1", output: "1.1"},
+		{input: "true", output: "true"},
+		{input: "false", output: "false"},
+		{input: "", output: ""},
+		{input: nil, output: nil},
+		{input: 0, output: "0"},
+		{input: 1, output: "1"},
+		{input: -1.1, output: "-1.1"},
+		{input: 1.1, output: "1.1"},
+		{input: true, output: "true"},
+		{input: false, output: "false"},
+	}
+}
+
+func arrayOfBooleanTypeTests() []inputOutput {
+	return []inputOutput{
+		{input: []any{true, false, true, false}, output: []any{true, false, true, false}},
+		{input: []any{"true", "false", "true", "false"}, output: []any{true, false, true, false}},
+		{input: []any{nil, nil, nil, nil}, output: []any{}},
+		{input: []any{true, false, "true", "false", nil, nil}, output: []any{true, false, true, false}},
+		{input: []any{}, output: []any{}},
+	}
+}
+
+func arrayOfIntegerTypeTests(rnd randomTestValues) []inputOutput {
+	return []inputOutput{
+		{input: []any{0, 1, 1.0, 1.1, 1.9}, output: []any{0, 1, 1, 1, 1}},
+		{input: []any{0, -1, -1.0, -1.1, -1.9}, output: []any{0, -1, -1, -1, -1}},
+		{input: []any{123456789, 0.123456789}, output: []any{123456789, 0}},
+		{input: []any{"0", "1", "2.0", "-1", "-2.0"}, output: []any{0, 1, 2, -1, -2}},
+		{input: []any{nil, nil, nil, nil}, output: []any{}},
+		{input: []any{0, 1, 1.0, "-1", "-1.0", nil, nil}, output: []any{0, 1, 1, -1, -1}},
+		{input: []any{}, output: []any{}},
+		{input: []any{rnd.int, rnd.int63, rnd.float63}, output: []any{rnd.int, rnd.int63, int64(rnd.float63)}},
+	}
+}
+
+func arrayOfStringTypeTests(rnd randomTestValues) []inputOutput {
+	return []inputOutput{
+		{input: []any{"test_string", "3", "3.0", "", "true", "false"}, output: []any{"test_string", "3", "3.0", "", "true", "false"}},
+		{input: []any{true, true, false, false}, output: []any{"true", "true", "false", "false"}},
+		{input: []any{0, 1, 1.0, 1.1, -1.1, 123456789}, output: []any{"0", "1", "1", "1.1", "-1.1", "123456789"}},
+		{input: []any{nil, nil, nil, nil}, output: []any{}},
+		{input: []any{"test_string", "3", "3.0", "", "true", "false", 3, 3.0, nil, true, false, nil}, output: []any{"test_string", "3", "3.0", "", "true", "false", "3", "3", "true", "false"}},
+		{input: []any{}, output: []any{}},
+		{input: []any{rnd.string, rnd.int, rnd.int63, rnd.float63}, output: []any{rnd.string, fmt.Sprintf("%d", rnd.int), fmt.Sprintf("%d", rnd.int63), fmt.Sprintf("%v", rnd.float63)}},
+	}
+}
+
+func arrayOfFloatTypeTests(rnd randomTestValues) []inputOutput {
+	return []inputOutput{
+		{input: []any{0, 1, 1.0, 1.1, 1.9}, output: []any{0.0, 1.0, 1.0, 1.1, 1.9}},
+		{input: []any{0, -1, -1.0, -1.1, -1.9}, output: []any{0.0, -1.0, -1.0, -1.1, -1.9}},
+		{input: []any{123456789, 0.123456789}, output: []any{123456789.0, 0.123456789}},
+		{input: []any{"0", "1", "2.0", "-1", "-2.0"}, output: []any{0.0, 1.0, 2.0, -1.0, -2.0}},
+		{input: []any{nil, nil, nil, nil}, output: []any{}},
+		{input: []any{0, 1, 1.0, "-1", "-1.0", nil, nil}, output: []any{0.0, 1.0, 1.0, -1.0, -1.0}},
+		{input: []any{}, output: []any{}},
+		{input: []any{rnd.int, rnd.int63, rnd.float63}, output: []any{float64(rnd.int), float64(rnd.int63), rnd.float63}},
+	}
+}
+
+func arrayOfFloatEnumTests() []inputOutput {
+	return []inputOutput{
+		{input: []any{0.0, 1.0, -1.0, -1.1, 1.1, 0.0, 1.0, -1.0, -1.1, 1.1}, output: []any{0.0, 1.0, -1.0, -1.1, 1.1, 0.0, 1.0, -1.0, -1.1, 1.1}},
+		{input: []any{"0.0", "1.0", "-1.0", "-1.1", "1.1"}, output: []any{0.0, 1.0, -1.0, -1.1, 1.1}},
+		{input: []any{0, 1, -1}, output: []any{0.0, 1.0, -1.0}},
+		{input: []any{nil, nil, nil, nil}, output: []any{}},
+		{input: []any{0, 1, 1.1, "-1", "-1.1", nil, nil}, output: []any{0.0, 1.0, 1.1, -1.0, -1.1}},
+		{input: []any{}, output: []any{}},
+	}
+}
+
+func objectTests(rnd randomTestValues) []inputOutput {
+	return []inputOutput{
+		{input: map[string]any{"boolean": true, "integer": 0, "string": "test_string", "float": 0.0}, output: map[string]any{"boolean": true, "integer": 0, "string": "test_string", "float": 0.0}},
+		{input: map[string]any{"boolean": false, "integer": 1, "string": "3", "float": 1.0}, output: map[string]any{"boolean": false, "integer": 1, "string": "3", "float": 1.0}},
+		{input: map[string]any{"boolean": true, "integer": 1.0, "string": "3.0", "float": 1.1}, output: map[string]any{"boolean": true, "integer": 1, "string": "3.0", "float": 1.1}},
+		{input: map[string]any{"boolean": true, "integer": rnd.int, "string": rnd.string, "float": rnd.float63}, output: map[string]any{"boolean": true, "integer": rnd.int, "string": rnd.string, "float": rnd.float63}},
+	}
+}
+
 func validateTests() map[string][]inputOutput {
-	randInt := rand.Int()
-	randInt63 := rand.Int63()
-	randFloat64 := rand.Float64()
-	randBoolean := randomBoolean()
-	randString := randomString()
+	rnd := generateRandomTestValues()
+	enumString, _ := EnumOf(StringType(), stringEnumValues()...)
+	floatEnum, _ := EnumOf(FloatType(), floatEnumValues()...)
+
+	objectType, _ := ObjectType(objectFields())
 
 	return map[string][]inputOutput{
-		nonExistingTestField: {
-			{input: true},
-			{input: 0},
-			{input: 0.123456789},
-			{input: "test_string"},
-			{input: randInt},
-			{input: randInt63},
-			{input: randFloat64},
-			{input: randBoolean},
-			{input: randString},
-			{input: nil},
-		},
-		BooleanType().String(): {
-			{input: true, output: true},
-			{input: false, output: false},
-			{input: "true", output: true},
-			{input: "false", output: false},
-			{input: nil, output: nil},
-		},
-		IntegerType().String(): {
-			{input: 0, output: 0},
-			{input: 1, output: 1},
-			{input: 1.0, output: 1},
-			{input: 1.1, output: 1},
-			{input: 1.9, output: 2},
-			{input: -1.0, output: -1},
-			{input: -1.1, output: -1},
-			{input: -1.9, output: -2},
-			{input: 123456789, output: 123456789},
-			{input: 0.123456789, output: 0},
-			{input: "3", output: 3},
-			{input: randInt, output: randInt},
-			{input: randInt63, output: randInt63},
-			{input: randFloat64, output: int(math.Round(randFloat64))},
-			{input: nil, output: nil},
-		},
-		StringType().String(): {
-			{input: "test_string", output: "test_string"},
-			{input: "3", output: "3"},
-			{input: "", output: ""},
-			{input: true, output: "true"},
-			{input: false, output: "false"},
-			{input: 0, output: "0"},
-			{input: 1.1, output: "1.1"},
-			{input: 1.0, output: "1"},
-			{input: -1.1, output: "-1.1"},
-			{input: 123456789, output: "123456789"},
-			{input: randString, output: randString},
-			{input: randInt, output: fmt.Sprintf("%d", randInt)},
-			{input: randInt63, output: fmt.Sprintf("%d", randInt63)},
-			{input: randFloat64, output: fmt.Sprintf("%v", randFloat64)},
-			{input: nil, output: nil},
-		},
-		FloatType().String(): {
-			{input: 0, output: 0.0},
-			{input: 1, output: 1.0},
-			{input: 1.0, output: 1.0},
-			{input: 1.1, output: 1.1},
-			{input: 1.9, output: 1.9},
-			{input: -1.0, output: -1.0},
-			{input: -1.1, output: -1.1},
-			{input: -1.9, output: -1.9},
-			{input: 123456789, output: 123456789.0},
-			{input: 0.123456789, output: 0.123456789},
-			{input: "3", output: 3.0},
-			{input: randInt, output: float64(randInt)},
-			{input: randInt63, output: float64(randInt63)},
-			{input: randFloat64, output: randFloat64},
-			{input: nil, output: nil},
-		},
+		nonExistingTestField:            nonExistingFieldTests(rnd),
+		BooleanType().String():          booleanTypeTests(),
+		IntegerType().String():          integerTypeTests(rnd),
+		StringType().String():           stringTypeTests(rnd),
+		FloatType().String():            floatTypeTests(rnd),
+		enumString.String():             stringEnumTests(),
+		ArrayOf(BooleanType()).String(): arrayOfBooleanTypeTests(),
+		ArrayOf(IntegerType()).String(): arrayOfIntegerTypeTests(rnd),
+		ArrayOf(StringType()).String():  arrayOfStringTypeTests(rnd),
+		ArrayOf(FloatType()).String():   arrayOfFloatTypeTests(rnd),
+		ArrayOf(floatEnum).String():     arrayOfFloatEnumTests(),
+		objectType.String():             objectTests(rnd),
 	}
 }
 
@@ -141,14 +289,43 @@ func compareValues(v1, v2 any) bool {
 		return false
 	}
 
+	v1 = transformVal(v1)
+	v2 = transformVal(v2)
+
 	val1 := reflect.ValueOf(v1)
 	val2 := reflect.ValueOf(v2)
 
-	if val1.Kind() == reflect.Slice && val2.Kind() == reflect.Slice {
+	if val1.Kind() == reflect.Slice || val2.Kind() == reflect.Slice {
+		if val1.Kind() != val2.Kind() {
+			return false
+		}
 		return compareSlices(val1, val2)
 	}
 
+	if val1.Kind() == reflect.Map || val2.Kind() == reflect.Map {
+		if val1.Kind() != val2.Kind() {
+			return false
+		}
+		return compareMaps(val1, val2)
+	}
+
 	return v1 == v2
+}
+
+func transformVal(v any) any {
+	switch v := v.(type) {
+	case int:
+		return int64(v)
+	case int8:
+		return int64(v)
+	case int16:
+		return int64(v)
+	case int32:
+		return int64(v)
+	case float32:
+		return float64(v)
+	}
+	return v
 }
 
 func compareSlices(slice1, slice2 reflect.Value) bool {
@@ -158,6 +335,20 @@ func compareSlices(slice1, slice2 reflect.Value) bool {
 
 	for i := 0; i < slice1.Len(); i++ {
 		if !compareValues(slice1.Index(i).Interface(), slice2.Index(i).Interface()) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func compareMaps(map1, map2 reflect.Value) bool {
+	if map1.Len() != map2.Len() {
+		return false
+	}
+
+	for _, key := range map1.MapKeys() {
+		if !compareValues(map1.MapIndex(key).Interface(), map2.MapIndex(key).Interface()) {
 			return false
 		}
 	}

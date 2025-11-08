@@ -11,7 +11,7 @@ import (
 var _ rules.AbstractNormalizer = (*normalizer)(nil)
 
 type normalizer struct {
-	rules.BaseNormalizer
+	*rules.BaseNormalizer
 }
 
 func NewNormalizer(options ...rules.NormalizerOption) (*normalizer, error) {
@@ -35,21 +35,9 @@ func (n normalizer) Normalize(data map[string]any) (map[string]any, error) {
 			continue
 		}
 
-		var normalizedValue any
-		var err error
-		if fieldType.IsArray {
-			normalizedValue, err = normalizeArray(value, fieldType.BaseType)
-		} else {
-			normalizedValue, err = normalizeValue(value, fieldType.BaseType)
-		}
+		normalizedValue, err := normalize(value, fieldType)
 		if err != nil {
 			return nil, err
-		}
-
-		if len(fieldType.EnumValues) > 0 {
-			if err = validateEnums(normalizedValue, fieldType.EnumValues, fieldType.IsArray); err != nil {
-				return nil, err
-			}
 		}
 
 		data[key] = normalizedValue
@@ -58,13 +46,33 @@ func (n normalizer) Normalize(data map[string]any) (map[string]any, error) {
 	return data, nil
 }
 
-func normalizeArray(value any, fieldType rules.BaseType) (any, error) {
+func normalize(value any, fieldType rules.FieldType) (normalizedValue any, err error) {
+	if fieldType.IsArray() {
+		normalizedValue, err = normalizeArray(value, fieldType)
+	} else {
+		normalizedValue, err = normalizeValue(value, fieldType)
+	}
+
+	if normalizedValue == nil {
+		fmt.Println("normalizedValue is nil")
+	}
+
+	if err != nil || len(fieldType.EnumValues()) == 0 {
+		return
+	}
+
+	err = validateEnums(normalizedValue, fieldType.EnumValues(), fieldType.IsArray())
+	return
+}
+
+func normalizeArray(value any, fieldType rules.FieldType) (any, error) {
 	array, ok := value.([]any)
 	if !ok {
 		return nil, fmt.Errorf("invalid array value: %v", value)
 	}
 
-	for i, elem := range array {
+	normalizedArray := make([]any, 0, len(array))
+	for _, elem := range array {
 		if elem == nil {
 			continue
 		}
@@ -74,18 +82,18 @@ func normalizeArray(value any, fieldType rules.BaseType) (any, error) {
 			return nil, err
 		}
 
-		array[i] = normalizedValue
+		normalizedArray = append(normalizedArray, normalizedValue)
 	}
 
-	return array, nil
+	return normalizedArray, nil
 }
 
-func normalizeValue(value any, fieldType rules.BaseType) (any, error) {
+func normalizeValue(value any, fieldType rules.FieldType) (any, error) {
 	if value == nil {
 		return nil, nil
 	}
 
-	switch fieldType {
+	switch fieldType.BaseType() {
 	case rules.Boolean:
 		switch value := value.(type) {
 		case bool:
@@ -101,7 +109,7 @@ func normalizeValue(value any, fieldType rules.BaseType) (any, error) {
 		case int, int64:
 			return value, nil
 		case float64:
-			return int(math.Round(value)), nil
+			return int64(value), nil
 		case string:
 			if intValue, err := strconv.Atoi(value); err == nil {
 				return intValue, nil
@@ -125,6 +133,26 @@ func normalizeValue(value any, fieldType rules.BaseType) (any, error) {
 			if floatValue, err := strconv.ParseFloat(value, 64); err == nil {
 				return floatValue, nil
 			}
+		}
+	case rules.Object:
+		valueMap, ok := value.(map[string]any)
+		if !ok {
+			return nil, fmt.Errorf("invalid object value: %v", value)
+		}
+
+		for key, val := range valueMap {
+			objectField, ok := fieldType.ObjectFields()[rules.Field(key)]
+			if !ok {
+				delete(valueMap, key)
+				continue
+			}
+
+			normalizedValue, err := normalize(val, objectField)
+			if err != nil {
+				return nil, err
+			}
+
+			valueMap[key] = normalizedValue
 		}
 	}
 
