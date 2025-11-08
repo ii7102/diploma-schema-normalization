@@ -1,7 +1,5 @@
 package rules
 
-import "fmt"
-
 type NormalizerOption func(AbstractNormalizer) error
 
 func normalizerOptionError(err error) NormalizerOption {
@@ -24,12 +22,11 @@ func withArrayFields(fieldType FieldType, fields ...Field) NormalizerOption {
 }
 
 func withEnumFields(fieldType FieldType, enumValues []any, fields ...Field) NormalizerOption {
-	baseType := fieldType.BaseType
-	if invalidEnumValue := validateEnumValues(baseType, enumValues); invalidEnumValue != nil {
-		return normalizerOptionError(fmt.Errorf("enum value %v, isn't of %s type", invalidEnumValue, baseType.String()))
+	enum, err := EnumOf(fieldType, enumValues...)
+	if err != nil {
+		return normalizerOptionError(err)
 	}
-
-	return withFields(EnumOf(fieldType, enumValues...), fields...)
+	return withFields(enum, fields...)
 }
 
 func WithBooleanFields(fields ...Field) NormalizerOption {
@@ -96,6 +93,14 @@ func WithArrayOfEnumOfFloatFields(enumValues []any, fields ...Field) NormalizerO
 	return withEnumFields(ArrayOf(FloatType()), enumValues, fields...)
 }
 
+func WithObjectField(objectFields map[Field]FieldType, field Field) NormalizerOption {
+	objectType, err := ObjectType(objectFields)
+	if err != nil {
+		return normalizerOptionError(err)
+	}
+	return withFields(objectType, field)
+}
+
 type AbstractNormalizer interface {
 	Normalize(map[string]any) (map[string]any, error)
 	SetField(Field, FieldType)
@@ -106,14 +111,14 @@ type BaseNormalizer struct {
 	Fields map[Field]FieldType
 }
 
-func NewBaseNormalizer(options ...NormalizerOption) (BaseNormalizer, error) {
-	n := BaseNormalizer{
+func NewBaseNormalizer(options ...NormalizerOption) (*BaseNormalizer, error) {
+	n := &BaseNormalizer{
 		Fields: make(map[Field]FieldType),
 	}
 
 	for _, option := range options {
-		if err := option(&n); err != nil {
-			return BaseNormalizer{}, err
+		if err := option(n); err != nil {
+			return nil, err
 		}
 	}
 

@@ -37,14 +37,6 @@ func jqRules() map[string]string {
 	}
 }
 
-func cachedCodeRules() map[string]*gojq.Code {
-	cachedCodeRules := make(map[string]*gojq.Code)
-	for fieldType, jqRule := range jqRules() {
-		cachedCodeRules[fieldType] = compileJqCode(jqRule)
-	}
-	return cachedCodeRules
-}
-
 func jqFilter(fields map[rules.Field]rules.FieldType) string {
 	var jqRulesArray []string
 	jqRules := jqRules()

@@ -1,12 +1,14 @@
 package rules
 
-func validateEnumValues(baseType BaseType, enumValues []any) (invalidEnumValue any) {
+import "fmt"
+
+func validateEnumValues(baseType BaseType, enumValues []any) (err error) {
 	for _, v := range enumValues {
 		if v == nil {
-			continue
+			return fmt.Errorf("enum value cannot be nil")
 		}
 		if !matchesBaseType(baseType, v) {
-			return v
+			return fmt.Errorf("enum value %v is not of %s type", v, baseType.String())
 		}
 	}
 	return nil
