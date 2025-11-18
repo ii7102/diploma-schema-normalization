@@ -31,7 +31,7 @@ jobs:
       - name: Verify golangci-lint installation
         run: golangci-lint --version
 
-      - name: Run make (tidy, fmt, vet, lint, test, build)
+      - name: Run make
         run: make
 
       - name: Upload build artifact
