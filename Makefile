@@ -1,65 +1,59 @@
-.PHONY: all build test test-verbose lint fmt vet clean run help
+.PHONY: all build test fmt vet lint check-lint install-lint run deps tidy
 
 # Default target
 all: tidy fmt vet lint test build
 
-# Build the application
 build:
 	@echo "Building diploma.exe..."
 	go build -o diploma.exe .
 
-# Run all tests
 test:
 	@echo "Running tests..."
 	go test ./...
 
-# Run tests with verbose output
-test-verbose:
-	@echo "Running tests (verbose)..."
-	go test -v ./...
-
-# Run tests with coverage
-test-coverage:
-	@echo "Running tests with coverage..."
-	go test -cover ./...
-
-# Format code
 fmt:
 	@echo "Formatting code..."
 	go fmt ./...
 
-# Run go vet
 vet:
 	@echo "Running go vet..."
 	go vet ./...
 
-# Run linters (requires golangci-lint to be installed)
-lint:
+lint: check-lint
 	@echo "Running linters..."
 	golangci-lint run --fix --config .golangci.yml
 
-# Run linters with verbose output (shows which linters are enabled)
-lint-verbose:
-	@echo "Running linters (verbose)..."
-	golangci-lint linters
-	golangci-lint run --config .golangci.yml --verbose
+check-lint:
+	@echo "Checking golangci-lint installation..."
+	@which golangci-lint > /dev/null || (echo "ERROR: golangci-lint is not installed. Run 'make install-lint' to install it." && exit 1)
+	@echo "Checking golangci-lint version..."
+	@INSTALLED_VERSION=$$(golangci-lint --version 2>/dev/null | grep -oP 'version \K\d+\.\d+\.\d+' || echo "unknown"); \
+	LATEST_VERSION=$$(curl -s https://api.github.com/repos/golangci/golangci-lint/releases/latest | grep '"tag_name"' | sed -E 's/.*"v([^"]+)".*/\1/' || echo "unknown"); \
+	if [ "$$INSTALLED_VERSION" = "unknown" ] || [ "$$LATEST_VERSION" = "unknown" ]; then \
+		echo "WARNING: Could not verify version. Installed: $$INSTALLED_VERSION"; \
+	elif [ "$$INSTALLED_VERSION" != "$$LATEST_VERSION" ]; then \
+		echo "ERROR: golangci-lint is outdated!"; \
+		echo "  Installed: v$$INSTALLED_VERSION"; \
+		echo "  Latest:    v$$LATEST_VERSION"; \
+		echo "  Run 'make install-lint' to update."; \
+		exit 1; \
+	else \
+		echo "golangci-lint is up-to-date (v$$INSTALLED_VERSION)"; \
+	fi
 
-# Run the application
+install-lint:
+	@echo "Installing latest golangci-lint..."
+	@curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin latest
+
 run: build
 	@echo "Running diploma.exe..."
 	./diploma.exe
 
-# Install dependencies
 deps:
 	@echo "Downloading dependencies..."
 	go mod download
 	go mod verify
 
-# Tidy dependencies
 tidy:
 	@echo "Tidying dependencies..."
 	go mod tidy
-
-# Run quick checks (format, vet, test)
-check: fmt vet test
-	@echo "All checks passed!"
