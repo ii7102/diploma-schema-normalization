@@ -342,26 +342,26 @@ func arrayOfFloatEnumTests() []inputOutput {
 	}
 }
 
-// func objectTests(rnd randomTestValues) []inputOutput {
-// 	return []inputOutput{
-// 		{
-// 			input:  map[string]any{"boolean": true, "integer": 0, "string": "test_string", "float": 0.0},
-// 			output: map[string]any{"boolean": true, "integer": 0, "string": "test_string", "float": 0.0},
-// 		},
-// 		{
-// 			input:  map[string]any{"boolean": false, "integer": 1, "string": "3", "float": 1.0},
-// 			output: map[string]any{"boolean": false, "integer": 1, "string": "3", "float": 1.0},
-// 		},
-// 		{
-// 			input:  map[string]any{"boolean": true, "integer": 1.0, "string": "3.0", "float": 1.1},
-// 			output: map[string]any{"boolean": true, "integer": 1, "string": "3.0", "float": 1.1},
-// 		},
-// 		{
-// 			input:  map[string]any{"boolean": true, "integer": rnd.int, "string": rnd.string, "float": rnd.float63},
-// 			output: map[string]any{"boolean": true, "integer": rnd.int, "string": rnd.string, "float": rnd.float63},
-// 		},
-// 	}
-// }
+func objectTests(rnd randomTestValues) []inputOutput {
+	return []inputOutput{
+		{
+			input:  map[string]any{"boolean": true, "integer": 0, "string": "test_string", "float": 0.0},
+			output: map[string]any{"boolean": true, "integer": 0, "string": "test_string", "float": 0.0},
+		},
+		{
+			input:  map[string]any{"boolean": false, "integer": 1, "string": "3", "float": 1.0},
+			output: map[string]any{"boolean": false, "integer": 1, "string": "3", "float": 1.0},
+		},
+		{
+			input:  map[string]any{"boolean": true, "integer": 1.0, "string": "3.0", "float": 1.1},
+			output: map[string]any{"boolean": true, "integer": 1, "string": "3.0", "float": 1.1},
+		},
+		{
+			input:  map[string]any{"boolean": true, "integer": rnd.int, "string": rnd.string, "float": rnd.float63},
+			output: map[string]any{"boolean": true, "integer": rnd.int, "string": rnd.string, "float": rnd.float63},
+		},
+	}
+}
 
 // func dateTypeTests() []inputOutput {
 // 	return []inputOutput{
@@ -387,7 +387,7 @@ func validateTests() map[string][]inputOutput {
 	rnd := generateRandomTestValues()
 	enumString, _ := EnumOf(StringType(), stringEnumValues()...)
 	floatEnum, _ := EnumOf(FloatType(), floatEnumValues()...)
-	// objectType, _ := ObjectType(objectFields())
+	objectType, _ := ObjectType(objectFields())
 
 	return map[string][]inputOutput{
 		nonExistingTestField:            nonExistingFieldTests(rnd),
@@ -401,7 +401,7 @@ func validateTests() map[string][]inputOutput {
 		ArrayOf(StringType()).String():  arrayOfStringTypeTests(rnd),
 		ArrayOf(FloatType()).String():   arrayOfFloatTypeTests(rnd),
 		ArrayOf(floatEnum).String():     arrayOfFloatEnumTests(),
-		// objectType.String():             objectTests(rnd),
+		objectType.String():             objectTests(rnd),
 		// DateType().String():             dateTypeTests(),
 		// TimestampType().String():        timestampTypeTests(),
 		// DateTimeType().String():         dateTimeTypeTests(),
