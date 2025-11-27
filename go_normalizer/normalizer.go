@@ -110,7 +110,7 @@ func normalizeValue(value any, fieldType rules.FieldType) (any, error) {
 	case rules.Float:
 		return normalizeFloat(value)
 	case rules.Date, rules.Timestamp, rules.DateTime:
-		return normalizeDateTime(value, fieldType.BaseType())
+		return normalizeDateTime(value, fieldType)
 	case rules.Object:
 		return normalizeObject(value, fieldType)
 	default:
@@ -203,21 +203,30 @@ func normalizeFloat(value any) (float64, error) {
 	}
 }
 
-func normalizeDateTime(value any, baseType rules.BaseType) (any, error) {
+func normalizeDateTime(value any, fieldType rules.FieldType) (any, error) {
+	baseType := fieldType.BaseType()
+
 	stringValue, ok := value.(string)
 	if !ok {
 		return nil, rules.WrappedError(errInvalidValue, "%s value: %v", baseType, value)
 	}
 
-	layoutFormats := layoutFormats(baseType)
-	for _, layoutFormat := range layoutFormats {
-		parsedTime, err := time.Parse(layoutFormat, stringValue)
-		if err == nil {
-			return parsedTime.Format(baseLayoutFormat(baseType)), nil
-		}
+	layout := fieldType.Layout()
+	if layout == nil {
+		return nil, rules.WrappedError(errInvalidValue, "layout is nil for %s", baseType)
 	}
 
-	return nil, rules.WrappedError(errInvalidValue, "%s value: string %s cannot be formatted", baseType, stringValue)
+	parsedTime, err := time.Parse(*layout, stringValue)
+	if err != nil {
+		return nil, rules.WrappedError(errInvalidValue, "%s value: string %s cannot be formatted", baseType, stringValue)
+	}
+
+	layoutFormat, err := baseType.LayoutFormat()
+	if err != nil {
+		return nil, err
+	}
+
+	return parsedTime.Format(layoutFormat), nil
 }
 
 func normalizeObject(value any, fieldType rules.FieldType) (any, error) {

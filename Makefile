@@ -41,7 +41,8 @@ vet:
 
 lint: check-lint
 	@echo "Running linters..."
-	golangci-lint run --fix --config .golangci.yml
+	golangci-lint cache clean
+	golangci-lint run ./... --fix
 
 check-lint:
 	@echo "Checking golangci-lint installation..."

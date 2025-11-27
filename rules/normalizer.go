@@ -3,19 +3,24 @@ package rules
 // NormalizerOption is a function that sets fields of some type to the normalizer.
 type NormalizerOption func(AbstractNormalizer) error
 
-func normalizerOptionError(err error) NormalizerOption {
-	return func(_ AbstractNormalizer) error {
-		return err
-	}
-}
-
 func withFields(fieldType FieldType, fields ...Field) NormalizerOption {
-	return func(n AbstractNormalizer) error {
+	return func(normalizer AbstractNormalizer) error {
 		for _, field := range fields {
-			n.SetField(field, fieldType)
+			normalizer.SetField(field, fieldType)
 		}
 
 		return nil
+	}
+}
+
+func withFieldTypeFunc(fieldTypeFunc func() (FieldType, error), fields ...Field) NormalizerOption {
+	return func(normalizer AbstractNormalizer) error {
+		fieldType, err := fieldTypeFunc()
+		if err != nil {
+			return err
+		}
+
+		return withFields(fieldType, fields...)(normalizer)
 	}
 }
 
@@ -24,12 +29,9 @@ func withArrayFields(fieldType FieldType, fields ...Field) NormalizerOption {
 }
 
 func withEnumFields(fieldType FieldType, enumValues []any, fields ...Field) NormalizerOption {
-	enum, err := EnumOf(fieldType, enumValues...)
-	if err != nil {
-		return normalizerOptionError(err)
-	}
-
-	return withFields(enum, fields...)
+	return withFieldTypeFunc(func() (FieldType, error) {
+		return EnumOf(fieldType, enumValues...)
+	}, fields...)
 }
 
 // WithBooleanFields sets the given fields as a boolean type.
@@ -58,23 +60,24 @@ func WithDateFields(fields ...Field) NormalizerOption {
 }
 
 // WithTimestampFields sets the given fields as a timestamp type.
-func WithTimestampFields(fields ...Field) NormalizerOption {
-	return withFields(TimestampType(), fields...)
+func WithTimestampFields(layout string, fields ...Field) NormalizerOption {
+	return withFieldTypeFunc(func() (FieldType, error) {
+		return TimestampType(layout)
+	}, fields...)
 }
 
 // WithDateTimeFields sets the given fields as a dateTime type.
-func WithDateTimeFields(fields ...Field) NormalizerOption {
-	return withFields(DateTimeType(), fields...)
+func WithDateTimeFields(layout string, fields ...Field) NormalizerOption {
+	return withFieldTypeFunc(func() (FieldType, error) {
+		return DateTimeType(layout)
+	}, fields...)
 }
 
 // WithObjectField sets the given fields as a object type with the given object fields.
 func WithObjectField(objectFields map[Field]FieldType, fields ...Field) NormalizerOption {
-	objectType, err := ObjectType(objectFields)
-	if err != nil {
-		return normalizerOptionError(err)
-	}
-
-	return withFields(objectType, fields...)
+	return withFieldTypeFunc(func() (FieldType, error) {
+		return ObjectType(objectFields)
+	}, fields...)
 }
 
 // WithEnumOfBooleanFields sets the given fields as a enum of boolean type with the given enum values.
@@ -144,47 +147,4 @@ type AbstractNormalizer interface {
 	NormalizeBatch(data []any) ([]any, error)
 	SetField(field Field, fieldType FieldType)
 	RemoveField(field Field)
-}
-
-// BaseNormalizer is the base generic normalizer that implements generic SetField and RemoveField methods.
-// To be compatible with the AbstractNormalizer interface, it implements a placeholder for the Normalize method.
-// The concrete normalizers that extend the BaseNormalizer should implement the Normalize method and
-// optionally override the SetField and RemoveField methods.
-type BaseNormalizer struct {
-	Fields map[Field]FieldType
-}
-
-// NewBaseNormalizer creates a new base normalizer with the given options.
-func NewBaseNormalizer(options ...NormalizerOption) (*BaseNormalizer, error) {
-	normalizer := &BaseNormalizer{
-		Fields: make(map[Field]FieldType),
-	}
-
-	for _, option := range options {
-		if err := option(normalizer); err != nil {
-			return nil, WrappedError(err, "failed to apply normalizer option")
-		}
-	}
-
-	return normalizer, nil
-}
-
-// SetField sets the given field and it's type to the normalizer.
-func (n *BaseNormalizer) SetField(field Field, fieldType FieldType) {
-	n.Fields[field] = fieldType
-}
-
-// RemoveField removes the given field from the normalizer.
-func (n *BaseNormalizer) RemoveField(field Field) {
-	delete(n.Fields, field)
-}
-
-// Normalize is a placeholder for the concrete normalizer implementation.
-func (*BaseNormalizer) Normalize(data map[string]any) (map[string]any, error) {
-	return data, nil
-}
-
-// NormalizeBatch is a placeholder for the concrete normalizer implementation.
-func (*BaseNormalizer) NormalizeBatch(data []any) ([]any, error) {
-	return data, nil
 }

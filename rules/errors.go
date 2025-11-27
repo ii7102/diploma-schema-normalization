@@ -16,6 +16,10 @@ var (
 	errObjectFieldsCannotBeEmpty    = errors.New("object fields cannot be empty")
 	errNestedObjectsAreNotSupported = errors.New("nested objects are not supported")
 
+	errInvalidTimestampLayout = errors.New("invalid timestamp layout")
+	errInvalidDateTimeLayout  = errors.New("invalid dateTime layout")
+	errBaseTypeWithoutLayout  = errors.New("base type without layout")
+
 	errExpectedOutputMismatch = errors.New("expected output does not match actual output")
 )
 
