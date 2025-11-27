@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"reflect"
 	"strconv"
+	"time"
 )
 
 const (
@@ -35,6 +36,8 @@ func testNormalizerOptions() []NormalizerOption {
 	stringEnum, _ := EnumOf(StringType(), stringEnumValues()...)
 	floatEnum, _ := EnumOf(FloatType(), floatEnumValues()...)
 	objectType, _ := ObjectType(objectFields())
+	timestampType, _ := TimestampType(time.Kitchen)
+	dateTimeType, _ := DateTimeType(time.RFC3339)
 
 	return []NormalizerOption{
 		WithBooleanFields(BooleanType().Field()),
@@ -49,8 +52,8 @@ func testNormalizerOptions() []NormalizerOption {
 		WithArrayOfEnumOfFloatFields(floatEnumValues(), ArrayOf(floatEnum).Field()),
 		WithObjectField(objectFields(), objectType.Field()),
 		WithDateFields(DateType().Field()),
-		WithTimestampFields(TimestampType().Field()),
-		WithDateTimeFields(DateTimeType().Field()),
+		WithTimestampFields(time.Kitchen, timestampType.Field()),
+		WithDateTimeFields(time.RFC3339, dateTimeType.Field()),
 	}
 }
 
@@ -363,48 +366,45 @@ func objectTests(rnd randomTestValues) []inputOutput {
 	}
 }
 
-// func dateTypeTests() []inputOutput {
-// 	return []inputOutput{
-// 		{input: "2021-01-01", output: "2021-01-01"},
-// 	}
-// }
+func dateTypeTests() []inputOutput {
+	return []inputOutput{
+		{input: "2021-01-01", output: "2021-01-01"},
+	}
+}
 
-// func timestampTypeTests() []inputOutput {
-// 	return []inputOutput{
-// 		{input: "00:00:00", output: "00:00:00"},
-// 		{input: "00:00:00.000", output: "00:00:00"},
-// 	}
-// }
+func timestampTypeTests() []inputOutput {
+	return []inputOutput{
+		{input: "3:04PM", output: "15:04:00"},
+	}
+}
 
-// func dateTimeTypeTests() []inputOutput {
-// 	return []inputOutput{
-// 		{input: "2021-01-01T00:00:00Z", output: "2021-01-01 00:00:00"},
-// 		{input: "2021-01-01T00:00:00.000Z", output: "2021-01-01 00:00:00"},
-// 	}
-// }
+func dateTimeTypeTests() []inputOutput {
+	return []inputOutput{
+		{input: "2021-01-01T00:00:00Z", output: "2021-01-01 00:00:00"},
+	}
+}
 
 func validateTests() map[string][]inputOutput {
 	rnd := generateRandomTestValues()
 	enumString, _ := EnumOf(StringType(), stringEnumValues()...)
 	floatEnum, _ := EnumOf(FloatType(), floatEnumValues()...)
-	objectType, _ := ObjectType(objectFields())
 
 	return map[string][]inputOutput{
-		nonExistingTestField:            nonExistingFieldTests(rnd),
-		BooleanType().String():          booleanTypeTests(),
-		IntegerType().String():          integerTypeTests(rnd),
-		StringType().String():           stringTypeTests(rnd),
-		FloatType().String():            floatTypeTests(rnd),
-		enumString.String():             stringEnumTests(),
-		ArrayOf(BooleanType()).String(): arrayOfBooleanTypeTests(),
-		ArrayOf(IntegerType()).String(): arrayOfIntegerTypeTests(rnd),
-		ArrayOf(StringType()).String():  arrayOfStringTypeTests(rnd),
-		ArrayOf(FloatType()).String():   arrayOfFloatTypeTests(rnd),
-		ArrayOf(floatEnum).String():     arrayOfFloatEnumTests(),
-		objectType.String():             objectTests(rnd),
-		// DateType().String():             dateTypeTests(),
-		// TimestampType().String():        timestampTypeTests(),
-		// DateTimeType().String():         dateTimeTypeTests(),
+		nonExistingTestField:                    nonExistingFieldTests(rnd),
+		BooleanType().String():                  booleanTypeTests(),
+		IntegerType().String():                  integerTypeTests(rnd),
+		StringType().String():                   stringTypeTests(rnd),
+		FloatType().String():                    floatTypeTests(rnd),
+		enumString.String():                     stringEnumTests(),
+		ArrayOf(BooleanType()).String():         arrayOfBooleanTypeTests(),
+		ArrayOf(IntegerType()).String():         arrayOfIntegerTypeTests(rnd),
+		ArrayOf(StringType()).String():          arrayOfStringTypeTests(rnd),
+		ArrayOf(FloatType()).String():           arrayOfFloatTypeTests(rnd),
+		ArrayOf(floatEnum).String():             arrayOfFloatEnumTests(),
+		FieldType{baseType: Object}.String():    objectTests(rnd),
+		DateType().String():                     dateTypeTests(),
+		FieldType{baseType: Timestamp}.String(): timestampTypeTests(),
+		FieldType{baseType: DateTime}.String():  dateTimeTypeTests(),
 	}
 }
 

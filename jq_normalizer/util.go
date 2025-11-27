@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/ii7102/schema-normalization/rules"
 	"github.com/itchyny/gojq"
@@ -30,30 +31,77 @@ const (
 	arrayRule = "map( " + nullEndRule + ") "
 
 	arrayEnumRule = "%s as $enums | map( " + nullRule + enumCheck + endRule + ") "
+
+	dateRule      = "if test(\"^[0-9]{4}-[0-9]{2}-[0-9]{2}$\") then . else error(\"Invalid date: \" + .) end "
+	timestampRule = "try (strptime(%q) | strftime(\"%%H:%%M:%%S\")) catch null "
+	dateTimeRule  = "try (strptime(%q) | strftime(\"%%Y-%%m-%%d %%H:%%M:%%S\")) catch null "
 )
 
-func baseTypeJqRule(fieldType rules.FieldType) string {
-	switch fieldType.BaseType() {
-	case rules.Boolean:
-		return booleanRule
-	case rules.Integer:
-		return integerRule
-	case rules.String:
-		return stringRule
-	case rules.Float:
-		return floatRule
-	case rules.Object:
-		return jqFilter(fieldType.ObjectFields())
-	default:
+func timestampStrptimeFormat(layout *string) string {
+	if layout == nil {
 		return ""
 	}
+
+	format, found := map[string]string{
+		time.TimeOnly:   "%H:%M:%S",
+		time.Kitchen:    "%I:%M%p",
+		time.Stamp:      "%b %e %H:%M:%S",
+		time.StampMilli: "%b %e %H:%M:%S.%f",
+		time.StampMicro: "%b %e %H:%M:%S.%f",
+		time.StampNano:  "%b %e %H:%M:%S.%f",
+	}[*layout]
+
+	if !found {
+		return ""
+	}
+
+	return format
+}
+
+func dateTimeStrptimeFormat(layout *string) string {
+	if layout == nil {
+		return ""
+	}
+
+	format, found := map[string]string{
+		time.RFC3339:     "%Y-%m-%dT%H:%M:%S%z",
+		time.DateTime:    "%Y-%m-%d %H:%M:%S",
+		time.RFC3339Nano: "%Y-%m-%dT%H:%M:%S.%f%z",
+		time.RFC1123:     "%a, %d %b %Y %H:%M:%S %Z",
+		time.RFC1123Z:    "%a, %d %b %Y %H:%M:%S %z",
+		time.RFC850:      "%A, %d-%b-%y %H:%M:%S %Z",
+		time.RFC822:      "%d %b %y %H:%M %Z",
+		time.RFC822Z:     "%d %b %y %H:%M %z",
+		time.ANSIC:       "%a %b %e %H:%M:%S %Y",
+		time.UnixDate:    "%a %b %e %H:%M:%S %Z %Y",
+		time.RubyDate:    "%a %b %d %H:%M:%S %z %Y",
+	}[*layout]
+
+	if !found {
+		return ""
+	}
+
+	return format
+}
+
+func baseTypeJqRule(fieldType rules.FieldType) string {
+	return map[rules.BaseType]string{
+		rules.Boolean:   booleanRule,
+		rules.Integer:   integerRule,
+		rules.String:    stringRule,
+		rules.Float:     floatRule,
+		rules.Date:      dateRule,
+		rules.Timestamp: fmt.Sprintf(timestampRule, timestampStrptimeFormat(fieldType.Layout())),
+		rules.DateTime:  fmt.Sprintf(dateTimeRule, dateTimeStrptimeFormat(fieldType.Layout())),
+		rules.Object:    jqFilter(fieldType.ObjectFields()),
+	}[fieldType.BaseType()]
 }
 
 func generateJqRule(fieldType rules.FieldType) string {
 	var (
 		jqRule  = baseTypeJqRule(fieldType)
 		isArray = fieldType.IsArray()
-		enums   = fieldType.EnumValues().String()
+		enums   = fieldType.EnumValues()
 	)
 
 	if jqRule == "" {
@@ -61,9 +109,9 @@ func generateJqRule(fieldType rules.FieldType) string {
 	}
 
 	switch {
-	case isArray && enums != "":
+	case isArray && len(enums) > 0:
 		jqRule = fmt.Sprintf(arrayEnumRule, enums, jqRule)
-	case enums != "":
+	case len(enums) > 0:
 		jqRule = fmt.Sprintf(enumRule, enums, jqRule)
 	case isArray:
 		jqRule = fmt.Sprintf(arrayRule, jqRule)
