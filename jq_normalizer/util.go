@@ -32,8 +32,8 @@ const (
 	arrayEnumRule = "%s as $enums | map( " + nullRule + enumCheck + endRule + ") "
 )
 
-func baseTypeJqRule(baseType rules.BaseType) string {
-	switch baseType {
+func baseTypeJqRule(fieldType rules.FieldType) string {
+	switch fieldType.BaseType() {
 	case rules.Boolean:
 		return booleanRule
 	case rules.Integer:
@@ -42,6 +42,8 @@ func baseTypeJqRule(baseType rules.BaseType) string {
 		return stringRule
 	case rules.Float:
 		return floatRule
+	case rules.Object:
+		return jqFilter(fieldType.ObjectFields())
 	default:
 		return ""
 	}
@@ -49,7 +51,7 @@ func baseTypeJqRule(baseType rules.BaseType) string {
 
 func generateJqRule(fieldType rules.FieldType) string {
 	var (
-		jqRule  = baseTypeJqRule(fieldType.BaseType())
+		jqRule  = baseTypeJqRule(fieldType)
 		isArray = fieldType.IsArray()
 		enums   = fieldType.EnumValues().String()
 	)
