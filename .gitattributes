@@ -1,0 +1,8 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Force LF for Go source files (prevents go fmt from constantly reformatting)
+*.go text eol=lf
+
+# Collapse go.sum in GitHub PR diffs (it's auto-generated)
+go.sum linguist-generated
